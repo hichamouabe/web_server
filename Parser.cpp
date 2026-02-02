@@ -9,7 +9,11 @@ ConfigNode* Parser::parse() {
     root->name = "ROOT";
 
     while (_pos < _tokens.size() && _tokens[_pos].type != T_EOF) {
-        root->children.push_back(parseStatement());
+        // [FIX 1] Capture the child in a variable first
+        ConfigNode* child = parseStatement(); 
+        
+        child->parent = root; // Now this works because 'child' exists
+        root->children.push_back(child);
     }
     return root;
 }
