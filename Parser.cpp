@@ -47,7 +47,10 @@ ConfigNode* Parser::parseStatement() {
         ConfigNode* node = new ConfigNode(NODE_BLOCK, name, args);
         
         while (_pos < _tokens.size() && _tokens[_pos].type != T_RBRACE) {
-            node->children.push_back(parseStatement());
+            //node->children.push_back(parseStatement());
+	    ConfigNode* child = parseStatement();
+	    child->parent = node;
+	    node->children.push_back(child);
         }
         
         if (_pos >= _tokens.size() || _tokens[_pos].type != T_RBRACE) {

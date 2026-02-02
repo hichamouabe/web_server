@@ -9,9 +9,9 @@
 
 
 enum	Context {
-	CTX_MAIN	= 0;
-	CTX_SERVER	= 1;
-	CTX_LOCATION	= 2;
+	CTX_MAIN	= 0,
+	CTX_SERVER	= 1,
+	CTX_LOCATION	= 2
 };
 
 struct	DirectiveRule {
@@ -26,9 +26,11 @@ class	ConfigValidator {
 		std::map<std::string, DirectiveRule> _rules;
 
 		void	initRules();
-		void	validateNode(configNode* node, int context);
+		void	validateNode(ConfigNode* node, int context);
 	public:
 		ConfigValidator();
 		~ConfigValidator();
 		void	validate(ConfigNode* root);
 };
+
+#endif

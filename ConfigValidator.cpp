@@ -30,7 +30,7 @@ void	ConfigValidator::validate(ConfigNode* root) {
 	validateNode(root, CTX_MAIN);
 }
 
-void	ConfigValidator::validateNode(configNode* node, int current_context) {
+void	ConfigValidator::validateNode(ConfigNode* node, int current_context) {
 	if (node->name == "ROOT") {
 		for (size_t i = 0; i < node->children.size(); i++) {
 			validateNode(node->children[i], current_context);
