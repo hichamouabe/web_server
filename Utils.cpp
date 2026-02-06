@@ -60,10 +60,9 @@ void parse_http_code(const std::string& nb)
     if(isNumeric(nb))
 	{
 		int code = std::atoi(nb.c_str());
-		if (code < 100 || code > 599) throw std::runtime_error("Error_page code (out of range 100-599): '" + nb + "'");
+		if (code < 100 || code > 599 || nb.size() > 3) throw std::runtime_error("Error_page code (out of range 100-599): '" + nb + "'");
 	}
 	else throw std::runtime_error("Error_page code must be numeric '" + nb + "'");
-    
 }
 
 void parseCbmz(const std::string& vl)

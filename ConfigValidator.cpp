@@ -79,6 +79,7 @@ void	ConfigValidator::validateNode(ConfigNode* node, int current_context) {
 		next_context = CTX_SERVER;
 	if (node->name == "location")
 		next_context = CTX_LOCATION;
+	// hna tzadt
 	if (node->name == "limit_except")
 		next_context = CTX_LIMIT_EXCEPT;
 
@@ -98,6 +99,12 @@ void	ConfigValidator::validateNode(ConfigNode* node, int current_context) {
     if(node->name == "client_max_body_size")
         parseCbmz(node->args[0]);
     if(node->name == "autoindex")
+	{
+
         if(node->args[0] != "on" && node->args[0] != "off")
             throw std::runtime_error("Error: invalid value for autoindex (expected 'on' or 'off')");
+	}
+	if(node->name == "return")
+		parse_http_code(node->args[0]);
+
 }
