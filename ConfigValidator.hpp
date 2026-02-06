@@ -12,7 +12,8 @@
 enum	Context {
 	CTX_MAIN	= 0,
 	CTX_SERVER	= 1,
-	CTX_LOCATION	= 2
+	CTX_LOCATION	= 2,
+	CTX_LIMIT_EXCEPT = 4
 };
 
 struct	DirectiveRule {
