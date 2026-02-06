@@ -1,6 +1,5 @@
 #include "ConfigValidator.hpp"
-#include <sstream>
-#include <iostream>
+#include "Utils.hpp"
 
 ConfigValidator::ConfigValidator() { initRules(); }
 
@@ -82,4 +81,19 @@ void	ConfigValidator::validateNode(ConfigNode* node, int current_context) {
 	for (size_t i = 0; i < node->children.size(); i++) {
 		validateNode(node->children[i], next_context);
 	}
+	for (size_t i = 0; i < node->children.size(); i++) {
+        validateNode(node->children[i], next_context);
+    }
+    if(node->name == "listen") parseListenValue(node->args[0]);
+    if(node->name == "error_page")
+    {
+        for(size_t i = 0; i < node->args.size(); i++)
+            if(i != node->args.size() - 1)
+                parse_http_code(node->args[i]);
+    }
+    if(node->name == "client_max_body_size")
+        parseCbmz(node->args[0]);
+    if(node->name == "autoindex")
+        if(node->args[0] != "on" && node->args[0] != "off")
+            throw std::runtime_error("Error: invalid value for autoindex (expected 'on' or 'off')");
 }

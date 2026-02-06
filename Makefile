@@ -12,7 +12,7 @@ SRCS_LEXER      = Lexer.cpp main.cpp
 SRCS_PARSER     = Lexer.cpp Parser.cpp ConfigNode.cpp test_main.cpp
 
 # --- Phase 3: Validator Sources (New) ---
-SRCS_VALIDATOR  = Lexer.cpp Parser.cpp ConfigNode.cpp ConfigValidator.cpp test_validator.cpp
+SRCS_VALIDATOR  = Lexer.cpp Parser.cpp ConfigNode.cpp ConfigValidator.cpp test_validator.cpp Utils.cpp
 
 # --- Rules ---
 
