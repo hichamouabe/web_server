@@ -19,6 +19,7 @@ struct	DirectiveRule {
 	int	max_args;
 	int	allowed_contexts;
 	bool	is_unique;
+	bool	is_block;
 };
 
 class	ConfigValidator {
@@ -27,6 +28,7 @@ class	ConfigValidator {
 
 		void	initRules();
 		void	validateNode(ConfigNode* node, int context);
+		void	validateBehaviour();
 	public:
 		ConfigValidator();
 		~ConfigValidator();
