@@ -86,9 +86,6 @@ void	ConfigValidator::validateNode(ConfigNode* node, int current_context) {
 	for (size_t i = 0; i < node->children.size(); i++) {
 		validateNode(node->children[i], next_context);
 	}
-	for (size_t i = 0; i < node->children.size(); i++) {
-        validateNode(node->children[i], next_context);
-    }
     if(node->name == "listen") parseListenValue(node->args[0]);
     if(node->name == "error_page")
     {

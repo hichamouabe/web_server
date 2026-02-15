@@ -79,3 +79,36 @@ void parseCbmz(const std::string& vl)
     }
     else if (!isNumeric(vl)) throw std::runtime_error("client_max_body_size: invalid value '" + vl + "'");
 }
+
+unsigned long parseSize(const std::string& value) {
+    if (value.empty()) return 0;
+
+    char unit = value[value.size() - 1];
+    std::string numberPart = value;
+    unsigned long multiplier = 1;
+
+    if (!isdigit(unit)) {
+        numberPart = value.substr(0, value.size() - 1);
+        if (unit == 'k' || unit == 'K') multiplier = 1024;
+        else if (unit == 'm' || unit == 'M') multiplier = 1024 * 1024;
+        else if (unit == 'g' || unit == 'G') multiplier = 1024 * 1024 * 1024;
+        else throw std::runtime_error("Invalid size unit: " + value);
+    }
+
+    return std::atol(numberPart.c_str()) * multiplier;
+}
+
+std::pair<std::string, int> parseListen(const std::string& value) {
+    size_t colonPos = value.find(':');
+
+    // Case 1: Just Port ("8080")
+    if (colonPos == std::string::npos) {
+        return std::make_pair("0.0.0.0", std::atoi(value.c_str()));
+    }
+
+    // Case 2: Host:Port ("127.0.0.1:8080")
+    std::string host = value.substr(0, colonPos);
+    std::string portStr = value.substr(colonPos + 1);
+
+    return std::make_pair(host, std::atoi(portStr.c_str()));
+}
