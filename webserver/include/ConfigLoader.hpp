@@ -49,7 +49,7 @@ class	ConfigLoader {
 
 	private:
 		void	loadServer(ConfigNode* serverNode, ServerConfig& config);
-		void	loadLocation(ConfigNode* locNode, LocationConfig parnetLoc, std::vector<LocationConfig>& list);
+		void	loadLocation(ConfigNode* locNode, LocationConfig parentLoc, std::vector<LocationConfig>& list);
 };
 
 #endif

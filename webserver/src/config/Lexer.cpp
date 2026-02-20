@@ -1,6 +1,7 @@
 #include "Lexer.hpp"
-
-Lexer::Lexer(const std::string& src) : _src(src), _pos(0), line(1) {}
+#include <sstream>  // Add this for std::stringstream
+#include <fstream>  // Add this for std::ifstream
+Lexer::Lexer(const std::string& src) : _src(src), _pos(0), _line(1) {}
 Lexer::~Lexer() {}
 
 bool	Lexer::isSpace(char c) const {
@@ -51,7 +52,9 @@ Token	Lexer::readQuotedString(char quote) {
 	}
 	else
 	{
-		throw std::runtime_error("Lexer Error: Uncloed quote at line" + std::to_string(_line));
+	    std::stringstream ss;
+            ss << "Lexer Error: Unclosed quote at line " << _line;
+            throw std::runtime_error(ss.str());
 	}
 	return Token(T_WORD, value, _line);
 }
@@ -66,7 +69,7 @@ Token	Lexer::readWord() {
 		}
 		_pos++;
 	}
-	std::string value = _src.subsrt(start, _pos - start);
+	std::string value = _src.substr(start, _pos - start);
 	return Token(T_WORD, value, _line);
 }
 
@@ -87,7 +90,7 @@ std::vector<Token>	Lexer::tokenize() {
 			_pos++;
 		}
 		else if (c == ';') {
-			tokens.push_back(Token(T_SEMINCOLON, ";", _line));
+			tokens.push_back(Token(T_SEMICOLON, ";", _line));
 			_pos++;
 		}
 		else if (c == '"' || c == '\'') {

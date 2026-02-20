@@ -2,7 +2,7 @@
 #include <sstream>
 
 Parser::Parser(const std::vector<Token>& tokens) : _tokens(tokens), _pos(0) {}
-Parser:~Parser() {}
+Parser::~Parser() {}
 
 ConfigNode* Parser::parse() {
 	ConfigNode* root = new ConfigNode(NODE_BLOCK);
@@ -37,10 +37,10 @@ ConfigNode*	Parser::parseStatement() {
 	else if (_tokens[_pos].type == T_LBRACE) {
 		_pos++;
 		ConfigNode* node = new ConfigNode(NODE_BLOCK, name, args);
-		while (_pos < _tokens.size() && tokens[_pos].type != T_RBRACE) {
+		while (_pos < _tokens.size() && _tokens[_pos].type != T_RBRACE) {
 			ConfigNode* child = parseStatement();
 			child->parent = node;
-			node->children.pus_back(child);
+			node->children.push_back(child);
 		}
 		if (_pos >= _tokens.size() || _tokens[_pos].type != T_RBRACE) {
 			throw std::runtime_error("Syntax Error: Missing closing brace '}'");

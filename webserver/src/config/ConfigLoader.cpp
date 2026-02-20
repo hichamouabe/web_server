@@ -44,7 +44,7 @@ void	ConfigLoader::loadServer(ConfigNode* node, ServerConfig& conf) {
 			conf.port = listen.second;
 		}
 		else if (child->name == "server_name") {
-			conf.server_name = child->args;
+			conf.server_names = child->args;
 		}
 		else if (child->name == "client_max_body_size") {
 			conf.client_max_body_size = parseSize(child->args[0]);
@@ -81,11 +81,11 @@ void	ConfigLoader::loadLocation(ConfigNode* node, LocationConfig parent, std::ve
 		ConfigNode* child = node->children[i];
 
 		if (child->name == "root") loc.root = child->args[0];
-		else if (child->name == "index") loc.index = child.args[0];
+		else if (child->name == "index") loc.index = child->args[0];
 		else if (child->name == "autoindex") loc.autoindex = (child->args[0] == "on");
 		else if (child->name == "client_max_body_size") loc.client_max_body_size = parseSize(child->args[0]);
-		else if (child->name == "rerurn") loc.return_url = std::make_pair(std::atoi(child->args[0].c_str()), child->args[1]);
-		else if (child->name == "cgi_pass") loc.cgi_pass = child->args[1];
+		else if (child->name == "return") loc.return_url = std::make_pair(std::atoi(child->args[0].c_str()), child->args[1]);
+		else if (child->name == "cgi_pass") loc.cgi_pass = child->args[0];
 		else if (child->name == "upload_store") loc.upload_store = child->args[0];
 		else if (child->name == "limit_except") {
 			loc.allowed_methods = child->args;
