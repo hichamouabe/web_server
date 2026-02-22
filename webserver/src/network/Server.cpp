@@ -124,7 +124,61 @@ void Server::run() {
         }
     }
 }
+void Server::processRequest(Client* client) {
+    if (client->recvBuffer().find("\r\n\r\n") == std::string::npos) return;
 
+    // 1. Parse Request
+    size_t end_line = client->recvBuffer().find("\r\n");
+    std::string request_line = client->recvBuffer().substr(0, end_line);
+    client->parseRequestLine(request_line);
+
+    std::string host = client->getHeader("Host");
+    size_t colon = host.find(':');
+    if (colon != std::string::npos) host = host.substr(0, colon);
+
+    const ServerConfig& serverConf = getServerConfig(client->getPort(), host);
+    const LocationConfig& locConf = getLocationConfig(serverConf, client->getPath());
+
+    std::string fullPath = locConf.root + client->getPath();
+
+    // Handle Directory Index
+    if (fullPath[fullPath.size() - 1] == '/') {
+        if (!locConf.index.empty()) {
+            fullPath += locConf.index;
+        }
+    }
+
+    std::cout << "Request: " << client->getPath() << " -> Serving: " << fullPath << std::endl;
+
+    std::ifstream file(fullPath.c_str());
+    if (file.good()) {
+        file.close();
+        client->openFile(fullPath);
+        client->setState(STATE_WRITE_RESPONSE);
+    } else {
+        // 404 Error
+        std::string body = "<html><body><h1>404 Not Found</h1></body></html>";
+        std::stringstream ss;
+        ss << "HTTP/1.1 404 Not Found\r\n"
+           << "Content-Length: " << body.size() << "\r\n"
+           << "Content-Type: text/html\r\n"
+           << "Connection: close\r\n\r\n"
+           << body;
+        client->sendBuffer() = ss.str();
+        client->setState(STATE_WRITE_RESPONSE);
+    }
+
+    // --- CRITICAL FIX START ---
+    // We must tell epoll we are ready to WRITE now.
+    struct epoll_event event;
+    event.events = EPOLLOUT | EPOLLIN; // Monitor for Write AND Read
+    event.data.fd = client->getFd();
+    if (epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, client->getFd(), &event) == -1) {
+        std::cerr << "Error: Failed to modify epoll event for writing" << std::endl;
+        closeClient(client->getFd());
+    }
+    // --- CRITICAL FIX END ---
+}
 // --- NETWORK EVENTS ---
 void Server::acceptNewClient(int listen_fd) {
     struct sockaddr_in client_addr;
@@ -167,43 +221,54 @@ void Server::handleRead(int client_fd) {
     processRequest(client);
 }
 
-/*void Server::processRequest(Client* client) {
-    // 1. Check if request is complete (\r\n\r\n)
-    if (client->recvBuffer().find("\r\n\r\n") == std::string::npos) {
-        return; // Wait for more data
-    }
-    
-    // 2. Parse Headers (Simplified for now)
-    // In real code, parse method, path, headers here.
-    
-    // 3. Prepare simple response (Stub)
-    std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nHello World!\n";
-    client->sendBuffer() = response;
-    
-    // 4. Switch mode to WRITING
-    struct epoll_event event;
-    event.events = EPOLLOUT;
-    event.data.fd = client->getFd();
-    epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, client->getFd(), &event);
-}*/
 
 void Server::handleWrite(int client_fd) {
     Client* client = _clients[client_fd];
-    std::string& data = client->sendBuffer();
 
+    // 1. Prepare Headers if file is open and headers not sent
+    if (client->isFileOpen() && !client->isHeadersSent()) {
+        client->fileStream().seekg(0, std::ios::end);
+        size_t fileSize = client->fileStream().tellg();
+        client->fileStream().seekg(0, std::ios::beg);
+
+        std::stringstream ss;
+        ss << "HTTP/1.1 200 OK\r\n"
+           << "Content-Length: " << fileSize << "\r\n"
+           << "Content-Type: text/html\r\n"
+           << "Connection: close\r\n\r\n"; // Using "close" to keep it simple for now
+        
+        client->sendBuffer().insert(0, ss.str());
+        client->setHeadersSent(true);
+    }
+
+    // 2. Read File Data
+    if (client->isFileOpen() && client->sendBuffer().size() < RECV_CHUNK_SIZE) {
+        char fileBuf[RECV_CHUNK_SIZE];
+        client->fileStream().read(fileBuf, RECV_CHUNK_SIZE);
+        std::streamsize bytesRead = client->fileStream().gcount();
+        if (bytesRead > 0) client->sendBuffer().append(fileBuf, bytesRead);
+        if (client->fileStream().eof()) client->fileStream().close();
+    }
+
+    std::string& data = client->sendBuffer();
     if (data.empty()) return;
 
+    // 3. Send Data
     ssize_t bytes_sent = send(client_fd, data.c_str(), data.size(), 0);
-    if (bytes_sent == -1) return; // Error handling needed
+    if (bytes_sent == -1) return;
 
-    // Remove sent part
     data.erase(0, bytes_sent);
 
-    // If done sending, close or keep-alive
-    if (data.empty()) {
-        closeClient(client_fd); // Close for now (Keep-Alive later)
+    // 4. Cleanup
+    // If buffer is empty AND (file is closed OR we never opened one aka 404)
+    if (data.empty() && !client->isFileOpen()) {
+        closeClient(client_fd); 
+        // Note: For Keep-Alive, instead of closing, we would reset() the client 
+        // and use epoll_ctl to switch back to EPOLLIN only.
     }
 }
+
+/////////////////////////////////////////////
 
 void Server::closeClient(int client_fd) {
     if (_clients.find(client_fd) == _clients.end()) return;
@@ -274,78 +339,4 @@ const LocationConfig& Server::getLocationConfig(const ServerConfig& server, cons
 
 
 
-void Server::processRequest(Client* client) {
-    // 1. Check if headers are fully received
-    if (client->recvBuffer().find("\r\n\r\n") == std::string::npos) return;
 
-    // 2. Parse Request
-    // (Assuming you extract the first line to get Method/Path/Version)
-    size_t end_line = client->recvBuffer().find("\r\n");
-    std::string request_line = client->recvBuffer().substr(0, end_line);
-    client->parseRequestLine(request_line);
-
-    // Extract Host Header (e.g., "localhost:8080")
-    // (You need a small parser loop here to fill client->_headers)
-    // For now, let's assume client->getHeader("Host") works.
-    std::string host = client->getHeader("Host");
-    size_t colon = host.find(':');
-    if (colon != std::string::npos) host = host.substr(0, colon); // Remove port
-
-    // 3. ROUTING: Find Configs
-    const ServerConfig& serverConf = getServerConfig(client->getPort(), host);
-    const LocationConfig& locConf = getLocationConfig(serverConf, client->getPath());
-
-    // 4. CHECK: Limit Except (Allowed Methods)
-    // If list is not empty, and Method is NOT in list -> 405 Method Not Allowed
-    if (!locConf.allowed_methods.empty()) {
-        bool allowed = false;
-        for (size_t i = 0; i < locConf.allowed_methods.size(); ++i) {
-            if (locConf.allowed_methods[i] == client->getMethod()) {
-                allowed = true;
-                break;
-            }
-        }
-        if (!allowed) {
-            // Send 405 Error
-            client->sendBuffer() = "HTTP/1.1 405 Method Not Allowed\r\n\r\n";
-            client->setState(STATE_WRITE_RESPONSE); // Ready to send
-            return;
-        }
-    }
-
-    // 5. CHECK: Redirection (return 301 ...)
-    if (locConf.return_url.first != 0) {
-        std::stringstream ss;
-        ss << "HTTP/1.1 " << locConf.return_url.first << " Moved\r\n"
-           << "Location: " << locConf.return_url.second << "\r\n\r\n";
-        client->sendBuffer() = ss.str();
-        client->setState(STATE_WRITE_RESPONSE);
-        return;
-    }
-
-    // 6. RESOLVE PATH: Root + URI
-    // Config: root /var/www; location /images;
-    // Request: /images/cat.png
-    // Result: /var/www/images/cat.png (Simple concatenation isn't always right, 
-    // usually we strip the location prefix if using 'alias', but for 'root' we just append).
-    
-    // Note: ConfigLoader already resolved absolute paths for us mostly.
-    // Logic: If 'root' is defined in location, use it. Otherwise use server root.
-    // (Our LocationConfig already has the correct root inherited).
-    
-    std::string fullPath = locConf.root + client->getPath();
-
-    // 7. SERVE FILE
-    // Check if file exists
-    std::ifstream file(fullPath.c_str());
-    if (file.good()) {
-        file.close();
-        client->openFile(fullPath); // Prepare file stream in Client
-        // Note: Actual headers (200 OK) will be generated in handleWrite
-        client->setState(STATE_WRITE_RESPONSE);
-    } else {
-        // Send 404
-        client->sendBuffer() = "HTTP/1.1 404 Not Found\r\n\r\n";
-        client->setState(STATE_WRITE_RESPONSE);
-    }
-}
